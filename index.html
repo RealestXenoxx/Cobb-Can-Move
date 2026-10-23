@@ -2,7 +2,7 @@
 <html lang="en-us">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
   <title>COBB CAN MOVE</title>
@@ -21,6 +21,7 @@
   >
 
   <link rel="manifest" href="./appmanifest.json">
+  <link rel="stylesheet" href="style.css">
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -42,19 +43,10 @@
       color: #fff;
     }
 
-    #game-frame {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
-      background: #000;
-      z-index: 5;
-      visibility: hidden;
-    }
-
-    #game-frame.visible {
-      visibility: visible;
+    canvas {
+      display: block;
+      margin: auto;
+      background-color: #000;
     }
 
     #loading-screen {
@@ -285,6 +277,10 @@
       text-align: left;
     }
 
+    .loading-text.error {
+      color: #ff9aa2;
+    }
+
     .loading-percent {
       font-size: 14px;
       font-weight: 800;
@@ -389,13 +385,6 @@
 </head>
 
 <body>
-  <iframe
-    id="game-frame"
-    title="COBB CAN MOVE"
-    allow="autoplay; fullscreen; gamepad"
-    allowfullscreen
-  ></iframe>
-
   <div id="loading-screen">
     <div class="bg-layer" id="bg"></div>
 
@@ -426,7 +415,7 @@
         class="loading-bar-container"
         id="progress"
         role="progressbar"
-        aria-label="Simulated loading progress"
+        aria-label="Loading progress"
         aria-valuemin="0"
         aria-valuemax="100"
         aria-valuenow="0"
@@ -452,6 +441,18 @@
     </div>
   </div>
 
+  <noscript>
+    <div id="notSupportedWrap">
+      <h2 id="notSupportedTitle">
+        This content requires JavaScript
+      </h2>
+    </div>
+  </noscript>
+
+  <script src="scripts/modernjscheck.js"></script>
+  <script src="scripts/supportcheck.js"></script>
+  <script src="scripts/main.js" type="module"></script>
+
   <script>
     const BACKGROUNDS = [
       "https://world-assets.viverse.com/assets/3cd0930a-5446-40fa-ada2-628d4d936c1a?imwidth=3840",
@@ -463,7 +464,6 @@
     const loadingPercent = document.getElementById("loading-percent");
     const mbText = document.getElementById("mb-text");
     const loadingScreen = document.getElementById("loading-screen");
-    const gameFrame = document.getElementById("game-frame");
     const progressElement = document.getElementById("progress");
 
     function pickBackground() {
@@ -493,50 +493,9 @@
     document.getElementById("bg").style.backgroundImage =
       `url("${pickBackground()}")`;
 
-    const baseURL = new URL("./", window.location.href).href;
-    const escapedBaseURL = baseURL
-      .replace(/&/g, "&amp;")
-      .replace(/"/g, "&quot;")
-      .replace(/</g, "&lt;");
-
-    const gameHTML = `
-<!DOCTYPE html>
-<html lang="en-us">
-<head>
-  <meta charset="utf-8">
-  <base href="${escapedBaseURL}">
-
-  <title>COBB CAN MOVE</title>
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no"
-  >
-
-  <meta name="generator" content="Scirra Construct">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <noscript>
-    <div id="notSupportedWrap">
-      <h2 id="notSupportedTitle">
-        This content requires JavaScript
-      </h2>
-    </div>
-  </noscript>
-
-  <script src="scripts/modernjscheck.js"><\/script>
-  <script src="scripts/supportcheck.js"><\/script>
-  <script src="scripts/main.js" type="module"><\/script>
-</body>
-</html>
-    `;
-
-    gameFrame.srcdoc = gameHTML;
-
     const totalSizeMB = 37.8;
     let progress = 0;
-    let finished = false;
+    let gameReady = false;
 
     function setProgress(value) {
       const percent = Math.max(0, Math.min(100, value));
@@ -562,19 +521,18 @@
     }
 
     function finishLoading() {
-      if (finished) return;
-      finished = true;
+      if (gameReady) return;
+      gameReady = true;
 
+      clearInterval(interval);
       setProgress(100);
       loadingText.textContent = "Ready!";
 
       setTimeout(() => {
-        gameFrame.classList.add("visible");
         loadingScreen.classList.add("fade-out");
 
         setTimeout(() => {
           loadingScreen.classList.add("hidden");
-          gameFrame.focus();
         }, 500);
       }, 700);
     }
@@ -585,22 +543,68 @@
           ? Math.random() * 6 + 3
           : Math.random() * 2 + 0.5;
 
-      progress = Math.min(progress + increment, 100);
+      progress = Math.min(progress + increment, 90);
       setProgress(progress);
 
       if (progress < 20) {
         loadingText.textContent = "Loading engine…";
       } else if (progress < 60) {
         loadingText.textContent = "Loading game data…";
-      } else if (progress < 90) {
-        loadingText.textContent = "Assembling game data…";
-      } else if (progress < 100) {
-        loadingText.textContent = "Almost there…";
       } else {
-        clearInterval(interval);
-        finishLoading();
+        loadingText.textContent = "Almost there…";
       }
     }, 120);
+
+    function checkForGame() {
+      const canvas = document.querySelector("body > canvas");
+
+      if (canvas && canvas.clientWidth > 0) {
+        finishLoading();
+        return true;
+      }
+
+      return false;
+    }
+
+    if (!checkForGame()) {
+      const observer = new MutationObserver(checkForGame);
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      const poll = setInterval(() => {
+        if (checkForGame()) {
+          clearInterval(poll);
+          observer.disconnect();
+        }
+      }, 250);
+
+      setTimeout(() => {
+        clearInterval(poll);
+        observer.disconnect();
+      }, 120000);
+    }
+
+    window.addEventListener(
+      "error",
+      function (event) {
+        const target = event.target;
+
+        if (
+          target &&
+          (target.tagName === "SCRIPT" || target.tagName === "LINK")
+        ) {
+          loadingText.textContent =
+            "Game files not found — check the file paths";
+          loadingText.classList.add("error");
+        }
+      },
+      true
+    );
+
+    if (window.location.protocol === "file:") {
+      loadingText.textContent =
+        "Open this through a web server, not a local file";
+      loadingText.classList.add("error");
+    }
   </script>
 </body>
 </html>
