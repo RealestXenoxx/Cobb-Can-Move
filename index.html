@@ -1,52 +1,467 @@
 <!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>COBB CAN MOVE</title>
+
+  <link rel="icon" type="image/png" href="https://static.wikia.nocookie.net/villains/images/f/fe/Creepy_Cobb.png/revision/latest?cb=20260723161815" />
+  <link rel="apple-touch-icon" sizes="512x512" href="https://static.wikia.nocookie.net/villains/images/f/fe/Creepy_Cobb.png/revision/latest?cb=20260723161815" />
+  <link rel="manifest" href="appmanifest.json">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    :root {
+      --accent: #8b5cf6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000;
+      font-family: 'Inter', sans-serif;
+      text-align: center;
+      color: #fff;
+    }
+
+    #game-frame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #000;
+      z-index: 5;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    #game-frame.visible {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding-bottom: 48px;
+      z-index: 1000;
+      overflow: hidden;
+      transition: opacity 0.45s ease;
+      perspective: 1200px;
+    }
+
+    #loading-screen::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(255,255,255,0.025) 0px,
+        rgba(255,255,255,0.025) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      mix-blend-mode: overlay;
+      opacity: 0.6;
+      z-index: 1001;
+    }
+
+    .bg-layer {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      filter: blur(10px) brightness(0.6);
+      transform: scale(1.08);
+      transition: background-image 0.4s ease;
+    }
+
+    #loading-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(
+        ellipse at center,
+        transparent 30%,
+        rgba(0, 0, 0, 0.65) 100%
+      );
+      z-index: 1;
+    }
+
+    .center-logo {
+      position: absolute;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(1);
+      z-index: 3;
+      width: min(600px, 80vw);
+      max-height: 40vh;
+      height: auto;
+      object-fit: contain;
+      pointer-events: none;
+      user-select: none;
+      filter:
+        drop-shadow(0 12px 32px rgba(0, 0, 0, 0.85))
+        drop-shadow(0 0 4px rgba(0, 0, 0, 0.95));
+      transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+                  top 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: center center;
+    }
+
+    .center-logo.zoomed {
+      top: 42%;
+      transform: translate(-50%, -50%) scale(1.35);
+    }
+
+    #loading-screen.fade-out { opacity: 0; pointer-events: none; }
+    #loading-screen.hidden { display: none; }
+
+    .loading-content {
+      position: relative;
+      z-index: 2;
+      width: 90%;
+      max-width: 560px;
+      padding: 28px 30px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: rgba(16, 18, 26, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 24px;
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.70),
+        0 0 60px color-mix(in srgb, var(--accent) 18%, transparent),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+        0 2px 0 rgba(255, 255, 255, 0.05) inset;
+      transform: rotate(-1deg);
+      transition: box-shadow 0.4s ease, transform 0.4s ease;
+    }
+
+    .loading-content::before,
+    .loading-content::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+      pointer-events: none;
+    }
+
+    .loading-content::before {
+      top: 10px;
+      left: 10px;
+      border-right: 0;
+      border-bottom: 0;
+      border-top-left-radius: 8px;
+    }
+
+    .loading-content::after {
+      bottom: 10px;
+      right: 10px;
+      border-left: 0;
+      border-top: 0;
+      border-bottom-right-radius: 8px;
+    }
+
+    .loading-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      gap: 12px;
+    }
+
+    .title-group { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+    .mini-favicon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.45),
+        0 0 20px color-mix(in srgb, var(--accent) 35%, transparent);
+      flex-shrink: 0;
+      object-fit: cover;
+    }
+
+    .loading-title {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .loading-mb {
+      color: rgba(255,255,255,0.85);
+      font-size: 12.5px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+      background: rgba(255,255,255,0.06);
+      padding: 4px 12px;
+      border-radius: 40px;
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, rgba(255,255,255,0.08));
+    }
+
+    /* Progress Bar */
+    .loading-bar-container {
+      position: relative;
+      width: 100%;
+      height: 10px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 999px;
+      overflow: hidden;
+      box-shadow: inset 0 1px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    }
+
+    .loading-bar {
+      position: relative;
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #222 0%, var(--accent) 50%, #222 100%);
+      background-size: 200% 100%;
+      animation: bar-shift 2.5s linear infinite;
+      transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow:
+        0 0 16px color-mix(in srgb, var(--accent) 50%, transparent),
+        0 0 40px color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+
+    .loading-bar::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.7) 50%, transparent 100%);
+      background-size: 40% 100%;
+      background-repeat: no-repeat;
+      animation: shimmer 1.8s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    .loading-bar::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: 0;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      transform: translate(50%, -50%);
+      background: #fff;
+      box-shadow:
+        0 0 10px #fff,
+        0 0 24px var(--accent),
+        0 0 40px color-mix(in srgb, var(--accent) 60%, transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .loading-bar.active::before { opacity: 1; }
+
+    @keyframes bar-shift {
+      0% { background-position: 0% 0%; }
+      100% { background-position: 200% 0%; }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -50% 0; }
+      100% { background-position: 150% 0; }
+    }
+
+    .loading-bar-dots {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      pointer-events: none;
+      overflow: hidden;
+      opacity: 0.55;
+      mix-blend-mode: screen;
+    }
+
+    .loading-bar-dots::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, #ccc 1px, transparent 1px);
+      background-size: 8px 8px;
+      background-position: 0 0;
+      animation: dot-flow 3.5s linear infinite;
+      opacity: 0.8;
+    }
+
+    @keyframes dot-flow {
+      0% { background-position: 0 0; }
+      100% { background-position: 80px 0; }
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-top: 2px;
+    }
+
+    .loading-text {
+      font-size: 13px;
+      color: rgba(255,255,255,0.9);
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+    }
+
+    .loading-percent {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      text-shadow:
+        0 0 12px color-mix(in srgb, var(--accent) 50%, transparent),
+        0 2px 6px rgba(0,0,0,0.9);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      padding: 4px 12px;
+      border-radius: 40px;
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    }
+
+    .loading-dots {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 2px;
+    }
+
+    .dot {
+      width: 5px;
+      height: 5px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: dot-pulse 1.4s infinite ease-in-out;
+      box-shadow:
+        0 0 8px color-mix(in srgb, var(--accent) 60%, transparent),
+        0 0 2px rgba(0,0,0,0.9);
+    }
+
+    .dot:nth-child(2) { animation-delay: 0.18s; }
+    .dot:nth-child(3) { animation-delay: 0.36s; }
+
+    @keyframes dot-pulse {
+      0%, 100% { opacity: 0.25; transform: scale(0.75); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+  </style>
+</head>
+<body>
+
+  <iframe id="game-frame" title="COBB CAN MOVE"></iframe>
+
+  <div id="loading-screen">
+    <div class="bg-layer" id="bg"></div>
+
+    <img class="center-logo" id="center-logo"
+         src="https://img.itch.zone/aW1nLzI0Mzg3MTg2LnBuZw==/original/dPLz2T.png"
+         alt="COBB CAN MOVE">
+
+    <div class="loading-content" id="loading-content">
+      <div class="loading-header">
+        <div class="title-group">
+          <img src="https://static.wikia.nocookie.net/villains/images/f/fe/Creepy_Cobb.png/revision/latest?cb=20260723161815"
+               class="mini-favicon" alt="icon">
+          <div class="loading-title">COBB CAN MOVE</div>
+        </div>
+        <div class="loading-mb" id="mb-text">0.0 MB / 45.0 MB</div>
+      </div>
+
+      <div class="loading-bar-container">
+        <div class="loading-bar" id="loading-bar"></div>
+        <div class="loading-bar-dots"></div>
+      </div>
+
+      <div class="status-row">
+        <div class="loading-text" id="loading-text">Initializing…</div>
+        <div class="loading-percent" id="loading-percent">0%</div>
+      </div>
+
+      <div class="loading-dots">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BACKGROUNDS = [
+      "https://world-assets.viverse.com/assets/3cd0930a-5446-40fa-ada2-628d4d936c1a?imwidth=3840",
+      "https://i.ytimg.com/vi/IR9-UESqRNc/maxresdefault.jpg"
+    ];
+
+    const bgLayer = document.getElementById('bg');
+    const centerLogo = document.getElementById('center-logo');
+    const loadingBar = document.getElementById('loading-bar');
+    const loadingText = document.getElementById('loading-text');
+    const loadingPercent = document.getElementById('loading-percent');
+    const mbText = document.getElementById('mb-text');
+    const loadingScreen = document.getElementById('loading-screen');
+    const gameFrame = document.getElementById('game-frame');
+
+    const bg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)];
+    bgLayer.style.backgroundImage = `url("${bg}")`;
+
+    setTimeout(() => {
+      centerLogo.classList.add('zoomed');
+    }, 100);
+
+    const gameHTML = `
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
 	<title>COBB CAN MOVE</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-	
-	<!-- Made with Construct, the game and app creator :: https://www.construct.net -->
 	<meta name="generator" content="Scirra Construct">
-
-
-
 	<link rel="manifest" href="appmanifest.json">
-	<link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
-	<link rel="apple-touch-icon" sizes="256x256" href="icons/icon-256.png">
-	<link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
-	<link rel="icon" type="image/png" href="icons/icon-512.png">
-
 	<link rel="stylesheet" href="style.css">
-
-
-
-</head> 
- 
+</head>
 <body>
-
-	
-
 <script>
-if (location.protocol.substr(0, 4) === "file")
-{
-	alert("Web exports won't work until you upload them. (When running on the file: protocol, browsers block many features from working for security reasons.)");
+if (location.protocol.substr(0, 4) === "file") {
+	alert("Web exports won't work until you upload them.");
 }
 </script>
-	
 	<noscript>
 		<div id="notSupportedWrap">
 			<h2 id="notSupportedTitle">This content requires JavaScript</h2>
-			<p class="notSupportedMessage">JavaScript appears to be disabled. Please enable it to view this content.</p>
 		</div>
 	</noscript>
 	<script src="scripts/modernjscheck.js"></script>
 	<script src="scripts/supportcheck.js"></script>
-	
 	<script src="scripts/main.js" type="module"></script>
-	
-
 <script>
-// 原构建注册过 Service Worker；换域名后旧缓存会顶掉新版本，这里主动注销一次。
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(function (list) {
     list.forEach(function (registration) { registration.unregister(); });
@@ -54,4 +469,46 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 </body> 
+</html>
+    `;
+
+    // Load the game into the iframe
+    gameFrame.srcdoc = gameHTML;
+
+    // Fake loading simulation
+    let progress = 0;
+    const totalSizeMB = 45.0;
+
+    const interval = setInterval(() => {
+      // Ease-out progression
+      const increment = progress < 60 ? Math.random() * 6 + 3 : Math.random() * 2 + 0.5;
+      progress = Math.min(progress + increment, 100);
+
+      loadingBar.style.width = progress + '%';
+      loadingPercent.textContent = Math.round(progress) + '%';
+      mbText.textContent = ((progress / 100) * totalSizeMB).toFixed(1) + ' MB / ' + totalSizeMB.toFixed(1) + ' MB';
+
+      if (progress > 0 && progress < 100) loadingBar.classList.add('active');
+      else if (progress >= 100) loadingBar.classList.remove('active');
+
+      if (progress < 30) loadingText.textContent = 'Loading assets…';
+      else if (progress < 70) loadingText.textContent = 'Assembling game data…';
+      else if (progress < 100) loadingText.textContent = 'Almost there…';
+      else loadingText.textContent = 'Ready!';
+
+      if (progress >= 100) {
+        clearInterval(interval);
+        setTimeout(() => {
+          gameFrame.classList.add('visible');
+          gameFrame.focus();
+          
+          loadingScreen.classList.add('fade-out');
+          loadingScreen.addEventListener('transitionend', function() {
+            loadingScreen.classList.add('hidden');
+          }, { once: true });
+        }, 500);
+      }
+    }, 120);
+  </script>
+</body>
 </html>
